@@ -12,6 +12,7 @@ export const useKeyboardControls = ({ enabled }: ControlConfig) => {
   const toggleAnswerVisibility = useRoundStore(
     (state) => state.toggleAnswerVisibility
   );
+  const undoLastAction = useRoundStore((state) => state.undoLastAction);
 
   useEffect(() => {
     if (!enabled) {
@@ -36,6 +37,10 @@ export const useKeyboardControls = ({ enabled }: ControlConfig) => {
           event.preventDefault();
           switchTurn();
           break;
+        case "KeyZ":
+          event.preventDefault();
+          undoLastAction();
+          break;
         case "KeyH":
           event.preventDefault();
           toggleAnswerVisibility();
@@ -47,5 +52,12 @@ export const useKeyboardControls = ({ enabled }: ControlConfig) => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [enabled, markCorrect, passQuestion, switchTurn, toggleAnswerVisibility]);
+  }, [
+    enabled,
+    markCorrect,
+    passQuestion,
+    switchTurn,
+    toggleAnswerVisibility,
+    undoLastAction,
+  ]);
 };

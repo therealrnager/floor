@@ -235,8 +235,10 @@ export const SetupRoundForm = ({ topicFolders }: SetupRoundFormProps) => {
         <strong className="font-semibold">Hotkeys</strong>:{" "}
         <code className="font-medium">W</code> next question / correct answer,{" "}
         <code className="font-medium">D</code> pass (−3s penalty),{" "}
-        <code className="font-medium">A</code> switch (3 per player). Buttons on
-        the round screen trigger the same actions. Press <code className="font-medium">H</code> to hide or show the host answer card.
+        <code className="font-medium">A</code> switch (3 per player),{" "}
+        <code className="font-medium">Z</code> undo last action. Buttons on the
+        round screen trigger the same actions. Press <code className="font-medium">H</code> to
+        hide or show the host answer card.
       </aside>
     </div>
   );

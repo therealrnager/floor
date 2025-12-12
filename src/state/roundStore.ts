@@ -33,6 +33,7 @@ export interface RoundState {
   showAnswer: boolean;
   roundDurationMs: number;
   winner: PlayerRole | null;
+  history: RoundSnapshot[];
 }
 
 export interface RoundActions {
@@ -53,12 +54,14 @@ export interface RoundActions {
   tick: (now: number) => void;
   hydrateFromSnapshot: (snapshot: RoundSnapshot) => void;
   resetRound: () => void;
+  undoLastAction: () => void;
 }
 
 export const DEFAULT_ROUND_DURATION_MS = 60_000;
 export const PASS_PENALTY_MS = 3_000;
 export const ROUND_START_BONUS_MS = 1_000;
 export const MAX_SWITCHES_PER_PLAYER = 3;
+const MAX_HISTORY_ENTRIES = 10;
 
 const initialPlayers = (
   durationMs: number = DEFAULT_ROUND_DURATION_MS
@@ -91,6 +94,7 @@ const initialState: RoundState = {
   showAnswer: true,
   roundDurationMs: DEFAULT_ROUND_DURATION_MS,
   winner: null,
+  history: [],
 };
 
 const applyTimeDeduction = (
@@ -139,12 +143,17 @@ const applyTimeDeduction = (
   };
 };
 
-export type RoundSnapshot = RoundState;
+export type RoundSnapshot = Omit<RoundState, "history">;
 
 const clonePlayers = (players: Record<PlayerRole, PlayerState>) => ({
   challenger: { ...players.challenger },
   challengee: { ...players.challengee },
 });
+
+const pushHistory = (state: RoundState & RoundActions) => {
+  const snapshot = selectRoundSnapshot(state);
+  return [snapshot, ...state.history].slice(0, MAX_HISTORY_ENTRIES);
+};
 
 export const selectRoundSnapshot = (
   state: RoundState & RoundActions
@@ -206,6 +215,7 @@ export const useRoundStore = create<RoundState & RoundActions>()((set) => ({
       showAnswer: true,
       roundDurationMs: sanitizedDuration,
       winner: null,
+      history: [],
     }));
   },
   setAnswerKey: (answers) => {
@@ -244,11 +254,12 @@ export const useRoundStore = create<RoundState & RoundActions>()((set) => ({
           return state;
         }
 
+        const history = pushHistory(state);
         const now = Date.now();
         const afterTick = applyTimeDeduction(state, now);
 
         if (afterTick.phase === "complete" || !afterTick.activePlayer) {
-          return afterTick;
+          return { ...afterTick, history };
         }
 
         const currentRole = afterTick.activePlayer;
@@ -267,6 +278,7 @@ export const useRoundStore = create<RoundState & RoundActions>()((set) => ({
                 ),
           pendingPageIndex: null,
           lastTickAt: now,
+          history,
         };
       });
     },
@@ -276,10 +288,11 @@ export const useRoundStore = create<RoundState & RoundActions>()((set) => ({
           return state;
         }
 
+        const history = pushHistory(state);
         const now = Date.now();
         const afterTick = applyTimeDeduction(state, now);
         if (afterTick.phase === "complete" || !afterTick.activePlayer) {
-          return afterTick;
+          return { ...afterTick, history };
         }
 
         const role = afterTick.activePlayer;
@@ -324,6 +337,7 @@ export const useRoundStore = create<RoundState & RoundActions>()((set) => ({
           lastTickAt: null,
           pendingPageIndex:
             phase === "passDelay" ? newIndex : afterTick.pendingPageIndex,
+          history,
         };
       });
     },
@@ -350,10 +364,11 @@ export const useRoundStore = create<RoundState & RoundActions>()((set) => ({
           return state;
         }
 
+        const history = pushHistory(state);
         const now = Date.now();
         const afterTick = applyTimeDeduction(state, now);
         if (afterTick.phase === "complete" || !afterTick.activePlayer) {
-          return afterTick;
+          return { ...afterTick, history };
         }
 
         const triggeringRole = afterTick.activePlayer;
@@ -378,6 +393,7 @@ export const useRoundStore = create<RoundState & RoundActions>()((set) => ({
           activePlayer: nextRole,
           pendingPageIndex: null,
           lastTickAt: now,
+          history,
         };
       });
     },
@@ -436,6 +452,18 @@ export const useRoundStore = create<RoundState & RoundActions>()((set) => ({
         };
       });
     },
+    undoLastAction: () => {
+      set((state) => {
+        if (state.history.length === 0) {
+          return state;
+        }
+        const [previous, ...rest] = state.history;
+        return {
+          ...previous,
+          history: rest,
+        };
+      });
+    },
     resetRound: () => {
       set(() => ({
         ...initialState,
@@ -457,6 +485,7 @@ export const useRoundStore = create<RoundState & RoundActions>()((set) => ({
         showAnswer: snapshot.showAnswer,
         roundDurationMs: snapshot.roundDurationMs,
         winner: snapshot.winner,
+        history: [],
       }));
     },
 }));
